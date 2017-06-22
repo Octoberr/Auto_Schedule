@@ -168,16 +168,17 @@ def angleBetweenVectorsDegrees(A, vertex, C):
 
 def checkDirectionCondition(currentPoint, nextPoint):
     # 检查下一个地点是否与现在的行驶方向顺路，顺路的定义是夹角小于maxAngle
-    if currentPoint[1] < longDistinguish:
-        if angleBetweenVectorsDegrees(currentPoint, rightCheckDirection, nextPoint) < MAXANGLE:
-            return True
-        else:
-            return False
+    # if currentPoint[1] < longDistinguish:
+    if (angleBetweenVectorsDegrees(currentPoint, rightCheckDirection, nextPoint) < MAXANGLE) or\
+            (angleBetweenVectorsDegrees(currentPoint, leftCheckDirection, nextPoint) < MAXANGLE):
+        return True
     else:
-        if angleBetweenVectorsDegrees(currentPoint, leftCheckDirection, nextPoint) < MAXANGLE:
-            return True
-        else:
-            return False
+        return False
+    # else:
+    #     if angleBetweenVectorsDegrees(currentPoint, leftCheckDirection, nextPoint) < MAXANGLE:
+    #         return True
+    #     else:
+    #         return False
 
 
 def getSortedPointIdx(points, currentPoint):
@@ -207,7 +208,7 @@ def getSortedPointIdx(points, currentPoint):
             else:
                 if points[neighborhoodIdx[i]][1] < longDistinguish and \
                      checkDistCondition(currentPoint, points[neighborhoodIdx[i]], rightCheckDirection) and \
-                     checkDirectionCondition(currentPoint, points[neighborhoodIdx[i]]):
+                        checkDirectionCondition(currentPoint, points[neighborhoodIdx[i]]):
                     closestPointIdx.append(neighborhoodIdx[i])
                 else:
                     continue

@@ -18,6 +18,7 @@ import mapAPI
 AMAPAIRPORTCOORDINATE = [30.574590, 103.955020]
 MAXSEATNUM5 = 5
 MAXSEATNUM6 = 6
+NORTH = 30.598071
 
 
 class DIST:
@@ -145,6 +146,18 @@ class DIST:
                 RMMTSID.pop(element2)
                 RMMTSLoc.pop(element2)
                 RMMTSseatnum.pop(element2)
+
+    # 区分南北订单
+    def distinguish(self, getonthecar, getonthecarloc, getonthecarseatnum, RMMTSID, RMMTSLoc, RMMTSseatnum, northOrderID, northOrderLoc, northOrderSeatnum):
+        for i in xrange(len(RMMTSLoc)):
+            if RMMTSLoc[i][0] > NORTH:
+                northOrderID.append(RMMTSID[i])
+                northOrderLoc.append(RMMTSLoc[i])
+                northOrderSeatnum.append(RMMTSseatnum[i])
+            else:
+                getonthecar.append(RMMTSID[i])
+                getonthecarloc.append(RMMTSLoc[i])
+                getonthecarseatnum.append(RMMTSseatnum[i])
 
     # 检查乘客在车上呆的时间是否满足小于最大时间
     def checkTimeLimitCondition(self, maxTimeLimit, currentPoint, nextPoint, airport, currentScheduleVec):

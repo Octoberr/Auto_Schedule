@@ -60,10 +60,15 @@ def startschedul(resdict):
         # 寻找一个地点乘客人数==5的周围是否存在1个订单1个人的情况
         dis.getTheFivePersonAroundOnlyOne(getonthecar, getonthecarLoc, getonthecarseatnum,
                                           RMMTSixpassengerOrderID, RMMTSixpassengerLoc, RMMTSixpassengerseatnum)
-    orderNum = len(RMMTSixpassengerLoc)     # 进入排班算法的总地点数
+    northOrderID = []
+    northOrderLoc = []
+    northOrderSeatnum = []
+    # 第四次处理超过处理范围的南边的订单将不去接送
+    dis.distinguish(getonthecar, getonthecarLoc, getonthecarseatnum, RMMTSixpassengerOrderID, RMMTSixpassengerLoc, RMMTSixpassengerseatnum, northOrderID, northOrderLoc, northOrderSeatnum)
+    orderNum = len(northOrderLoc)     # 进入排班算法的总地点数
     if orderNum > 1:
-        orderVec = dis.getOrderLocVec(RMMTSixpassengerLoc)     # 一维的经纬度列表转换为二维的经纬度数组
-        seatNumVec = dis.getOrderNumVec(RMMTSixpassengerseatnum)    # 二维的乘客人数转换为与地点对应的一维数组
+        orderVec = dis.getOrderLocVec(northOrderLoc)     # 一维的经纬度列表转换为二维的经纬度数组
+        seatNumVec = dis.getOrderNumVec(northOrderSeatnum)    # 二维的乘客人数转换为与地点对应的一维数组
         keypointDistVec = auxfn.calcDistVec(TIANFUSQUIRE, orderVec)    # 获取每个地点到天府高速交汇点的一维数组
         # Calculate the time distance from airport for each order
         airportTimeDistVec = GTI.getTimeDistVec(AMAPAIRPORTCOORDINATE, orderVec, orderNum)  # 获取每个地点到机场的时间距离
@@ -130,7 +135,7 @@ def startschedul(resdict):
         # 获取每辆车的地点的下标[[],[]]二维列表
         carList = dis.getCarPassengerList(time2AirportVec, arrangedPassengerIdx)
         # 获取每个地点的订单号[[[],[],[]],[[],[],[],[]]]二维列表
-        carOrderList = dis.getThePassengerOrderForEachCar(carList, RMMTSixpassengerOrderID)
+        carOrderList = dis.getThePassengerOrderForEachCar(carList, northOrderID)
         # 获取每个订单到机场的时间[[[],[],[]],[]]二维列表
         carOrderAndTimeList = dis.getOrderAndTimeInfos(carOrderList, time2AirportVec)
         if len(getonthecarLoc) is 0:
@@ -145,7 +150,7 @@ def startschedul(resdict):
     else:
         hasgetonthecarLocandTime = dis.gethasgotonthecartimedistance(getonthecarLoc, getonthecar)
         car = []
-        for element in RMMTSixpassengerOrderID[0]:
+        for element in northOrderID[0]:
             tmp = []
             tmp.append(element)
             tmp.append(0)
