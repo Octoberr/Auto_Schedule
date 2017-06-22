@@ -65,7 +65,8 @@ def geteachTimepointSchedule(AllscheduleData):
             else:
                 onlyone = [[[timepointorder[0]['BID'], 0]]]
                 scheduleDataVec.append(onlyone)
-    jsondata = incodejs(AllscheduleData, scheduleDataVec)
+    # jsondata = incodejs(AllscheduleData, scheduleDataVec)
+    jsondata = incodejs(timepointVec, scheduleDataVec)
     return jsondata
 
 
