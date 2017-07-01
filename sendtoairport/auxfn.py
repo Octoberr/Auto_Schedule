@@ -62,14 +62,15 @@ def BD2AMap(bdLat, bdLng):
     """
     Coordinate convertion: from BD to Gaode 
     """
-    x_pi = 3.14159265358979324 * 3000.0 / 180.0
-    x = bdLng - 0.0065
-    y = bdLat - 0.006
-    z = math.sqrt(x * x + y * y) - 0.00002 * math.sin(y * x_pi)
-    theta = math.atan2(y, x) - 0.000003 * math.cos(x * x_pi)
-    AMapLng = z * math.cos(theta)
-    AMapLat = z * math.sin(theta)
-    return Location(AMapLat, AMapLng)
+    # 因为没有使用高德计算时间的接口所以改回百度
+    # x_pi = 3.14159265358979324 * 3000.0 / 180.0
+    # x = bdLng - 0.0065
+    # y = bdLat - 0.006
+    # z = math.sqrt(x * x + y * y) - 0.00002 * math.sin(y * x_pi)
+    # theta = math.atan2(y, x) - 0.000003 * math.cos(x * x_pi)
+    # AMapLng = z * math.cos(theta)
+    # AMapLat = z * math.sin(theta)
+    return Location(bdLat, bdLng)
 
 
 def calcDist(locationA, locationB):
@@ -206,12 +207,9 @@ def getSortedPointIdx(points, currentPoint):
                 if checkDistCondition(currentPoint, points[neighborhoodIdx[i]], rightCheckDirection):
                     closestPointIdx.append(neighborhoodIdx[i])
             else:
-                if points[neighborhoodIdx[i]][1] < longDistinguish and \
-                     checkDistCondition(currentPoint, points[neighborhoodIdx[i]], rightCheckDirection) and \
+                if checkDistCondition(currentPoint, points[neighborhoodIdx[i]], rightCheckDirection) and \
                         checkDirectionCondition(currentPoint, points[neighborhoodIdx[i]]):
                     closestPointIdx.append(neighborhoodIdx[i])
-                else:
-                    continue
     else:
         for i in xrange(len(neighborhoodIdx)):
             if neighborhoodIdx[i] == inf:
@@ -232,12 +230,9 @@ def getSortedPointIdx(points, currentPoint):
                 if checkDistCondition(currentPoint, points[neighborhoodIdx[i]], AMAPKEYCOORDINATE):
                     closestPointIdx.append(neighborhoodIdx[i])
             else:
-                if points[neighborhoodIdx[i]][1] >= longDistinguish and \
-                    checkDistCondition(currentPoint, points[neighborhoodIdx[i]], AMAPKEYCOORDINATE) and \
+                if checkDistCondition(currentPoint, points[neighborhoodIdx[i]], AMAPKEYCOORDINATE) and \
                      checkDirectionCondition(currentPoint, points[neighborhoodIdx[i]]):
                     closestPointIdx.append(neighborhoodIdx[i])
-                else:
-                    continue
     return closestPointIdx
 
 

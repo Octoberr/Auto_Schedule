@@ -5,11 +5,11 @@ Donghui Chen, Wangmeng Song
 May 15, 2017
 排班逻辑修改 Wangmeng Song
 June 20, 2017
+June 29, 2017
+June 30, 2017
 """
 
 import numpy as np
-from compiler.ast import flatten
-import threading
 import copy
 
 import schedule
@@ -31,8 +31,13 @@ def startschedul(resdict):
     # event.wait()    # 设置全局变量event为false,是其他线程处于等待状态
     dis = schedule.DIST()   # 实例化DIST类
     GTI = mapAPI.AMapAPI()   # 实例化AMapAPI类
+    # 获得两个list，specifyDriverDic, normalPassengerDic
+    specifyDriverDic = []  # 存储指定司机的乘客
+    normalPassengerDic = []  # 存储普通乘客
+    dis.getTheSpecifyAndNormal(specifyDriverDic, normalPassengerDic, resdict)
     arrangedPassengerIdx = []  # store order index on all cars
     currentScheduleVec = []  # temporary using, store each passenger's travelling time on the same car
+    currentPassengerIdx = []  # 存储当前车的乘客
     time2AirportVec = []  # store each passenger's travelling time
     numPassengerVec = []  # store the number of passengers on each car
     # ------------------
@@ -44,7 +49,7 @@ def startschedul(resdict):
     repeatloc = []      # 存储第一次处理的传入数据的经纬度
     repeatseatnum = []      # 存储第一次处理的传入数据的乘客人数
     # 处理第一次传入的数据，第一次处理：过滤一个订单乘客人数==5or6
-    dis.getAllRepeatData(repeatpoid, repeatloc, repeatseatnum, getonthecar, getonthecarLoc, getonthecarseatnum, resdict)
+    dis.getAllRepeatData(repeatpoid, repeatloc, repeatseatnum, getonthecar, getonthecarLoc, getonthecarseatnum, normalPassengerDic)
     duplicateOrderID = []   # 存储第二次处理的传入数据的订单号
     duplicateSeatNum = []   # 存储第二次处理的传入数据的乘客人数
     # 获得第二次处理的传入数据的经纬度，第二次处理：获取一个地点的订单号，获取一个地点的乘客人数，获取唯一的经纬度
@@ -65,6 +70,9 @@ def startschedul(resdict):
     northOrderSeatnum = []
     # 第四次处理超过处理范围的南边的订单将不去接送
     dis.distinguish(getonthecar, getonthecarLoc, getonthecarseatnum, RMMTSixpassengerOrderID, RMMTSixpassengerLoc, RMMTSixpassengerseatnum, northOrderID, northOrderLoc, northOrderSeatnum)
+    # 处理指定司机的订单
+    if len(specifyDriverDic) > 0:
+        specifyDriverOrder = dis.getTheSpecifyDriverOrder(northOrderID, northOrderLoc, northOrderSeatnum, specifyDriverDic)
     orderNum = len(northOrderLoc)     # 进入排班算法的总地点数
     if orderNum > 1:
         orderVec = dis.getOrderLocVec(northOrderLoc)     # 一维的经纬度列表转换为二维的经纬度数组
@@ -76,6 +84,7 @@ def startschedul(resdict):
             firstPassengerIdx = np.argmax(keypointDistVec)  # 寻找距离机场最远的第一个上车的人
             arrangedPassengerIdx.append(firstPassengerIdx)  # 存储地点位置的索引[3,4,1,0]
             currentScheduleVec.append(airportTimeDistVec[firstPassengerIdx])  # 存储时间的索引，2017/6/19时间已经不再使用
+            currentPassengerIdx.append(firstPassengerIdx)
             numPassenger = seatNumVec[firstPassengerIdx]    # 每辆车上的乘客
             keypointDistVec[firstPassengerIdx] = 0  # 找到后进行虚拟删除，将值赋为0
             while numPassenger < CARSEATS:
@@ -89,7 +98,7 @@ def startschedul(resdict):
                 # else if there is no unarranged passenger in the neighborhood, search all the rest of points
                 # choose the closest point && closer to key point than current passenger
                 if len(neighborhoodIdxVec) >= 1:
-                    nextPassengerIdx = neighborhoodIdxVec
+                    nextPassengerIdx = dis.checkLongdiscondition(currentPassengerIdx, northOrderLoc, neighborhoodIdxVec)
                 else:
                     ix = np.where(np.in1d(np.arange(orderNum), arrangedPassengerIdx, invert=True))
                     if len(ix[0]) is 0:   # 最后一个人直接上车
@@ -99,12 +108,14 @@ def startschedul(resdict):
                         break
                     else:
                         tmpnextPassengerIdx = auxfn.getSortedPointIdx(orderVec[ix[0], :], orderVec[firstPassengerIdx, :])
-                        nextPassengerIdx = [ix[0][y] for y in tmpnextPassengerIdx]
+                        tmpPassengerIdx = [ix[0][y] for y in tmpnextPassengerIdx]
+                        nextPassengerIdx = dis.checkLongdiscondition(currentPassengerIdx, northOrderLoc, tmpPassengerIdx)
                 # 周围没有人了结束循环叫新车
                 if len(nextPassengerIdx) is 0:
                     numPassengerVec.append(numPassenger)
                     time2AirportVec.append(currentScheduleVec)
                     currentScheduleVec = []
+                    currentPassengerIdx = []
                     break
                 else:
                     # 车上没有6个人，周围有人，但是周围上车后车上最小的人数都大于6就结束循环叫新车或是最小的时间都大于限制
@@ -115,13 +126,14 @@ def startschedul(resdict):
                         numPassengerVec.append(numPassenger)
                         time2AirportVec.append(currentScheduleVec)
                         currentScheduleVec = []
+                        currentPassengerIdx = []
                         break
                 # compute the driving time from current to the next passenger
                 for i in xrange(len(nextPassengerIdx)):
                     if (numPassenger + seatNumVec[nextPassengerIdx[i]]) > CARSEATS:
                         continue
                     elif (dis.checkTimeLimitCondition(TIMELIMIT, orderVec[firstPassengerIdx, :],
-                                                      orderVec[nextPassengerIdx[i], :], AMAPAIRPORTCOORDINATE, currentScheduleVec)):
+                                                      orderVec[nextPassengerIdx[i], :], AMAPAIRPORTCOORDINATE, currentScheduleVec, currentPassengerIdx, nextPassengerIdx[i])):
                         numPassenger += seatNumVec[nextPassengerIdx[i]]
                         arrangedPassengerIdx.append(nextPassengerIdx[i])
                         firstPassengerIdx = nextPassengerIdx[i]
@@ -132,33 +144,43 @@ def startschedul(resdict):
                 numPassengerVec.append(numPassenger)
                 time2AirportVec.append(currentScheduleVec)
                 currentScheduleVec = []
+                currentPassengerIdx = []
         # 获取每辆车的地点的下标[[],[]]二维列表
         carList = dis.getCarPassengerList(time2AirportVec, arrangedPassengerIdx)
-        # 获取每个地点的订单号[[[],[],[]],[[],[],[],[]]]二维列表
+        # 对获取结果排序 f**k
+        # sortcarList = dis.sortPassenger(carList, northOrderLoc)
+        # 获取每个地点的订单号[[a,b,c],[d,c,e]]二维列表
         carOrderList = dis.getThePassengerOrderForEachCar(carList, northOrderID)
         # 获取每个订单到机场的时间[[[],[],[]],[]]二维列表
-        carOrderAndTimeList = dis.getOrderAndTimeInfos(carOrderList, time2AirportVec)
-        if len(getonthecarLoc) is 0:
-            # 如果没有已经上车的订单就封装成json数组
-            AllCarOrderAndTime = copy.copy(carOrderAndTimeList)
+        # carOrderAndTimeList = dis.getOrderAndTimeInfos(carOrderList, time2AirportVec)
+        if len(specifyDriverDic) is 0:
+            if len(getonthecarLoc) is 0:
+                # 如果没有已经上车的订单就封装成json数组
+                AllCarOrder = copy.copy(carOrderList)
+            else:
+                # 如果有已经上车的订单就将两个列表相加
+                # hasgetonthecarLocandTime = dis.gethasgotonthecartimedistance(getonthecarLoc, getonthecar)
+                AllCarOrder = carOrderList + getonthecar  # [[a,v,s],[q,w,e,r,f]]
+            # jsondata = dis.incodejs(AllCarOrderAndTime)
+            return AllCarOrder
         else:
-            # 如果有已经上车的订单就将两个列表相加
-            hasgetonthecarLocandTime = dis.gethasgotonthecartimedistance(getonthecarLoc, getonthecar)
-            AllCarOrderAndTime = carOrderAndTimeList+hasgetonthecarLocandTime
-        # jsondata = dis.incodejs(AllCarOrderAndTime)
-        return AllCarOrderAndTime
+            if len(getonthecarLoc) is 0:
+                AllCarOrder = carOrderList + specifyDriverOrder
+            else:
+                AllCarOrder = carOrderList + getonthecar + specifyDriverOrder
+            return AllCarOrder
+    elif orderNum is 1:
+        if len(specifyDriverDic) is 0:
+            AllCarOrder = northOrderID + getonthecar
+        else:
+            AllCarOrder = northOrderID + getonthecar + specifyDriverOrder
+        return AllCarOrder
     else:
-        hasgetonthecarLocandTime = dis.gethasgotonthecartimedistance(getonthecarLoc, getonthecar)
-        car = []
-        for element in northOrderID[0]:
-            tmp = []
-            tmp.append(element)
-            tmp.append(0)
-            car.append(tmp)
-        carOrderAndTimeList = [car]
-        AllCarOrderAndTime = carOrderAndTimeList + hasgetonthecarLocandTime
-        return AllCarOrderAndTime
-
+        if len(specifyDriverDic) is not 0:
+            AllCarOrder = getonthecar + specifyDriverOrder
+        else:
+            AllCarOrder = getonthecar
+        return AllCarOrder
 # event.set()
 
 

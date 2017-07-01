@@ -5,11 +5,13 @@ Donghui Chen, Wangmeng Song
 May 15, 2017
 修改
 Wangmeng Song
-june 17,2017
+June 17,2017
+June 29, 2017
+June 30,2017
 """
-import json
 import numpy as np
 import copy
+import tsp
 
 import knapsack
 import auxfn
@@ -19,9 +21,94 @@ AMAPAIRPORTCOORDINATE = [30.574590, 103.955020]
 MAXSEATNUM5 = 5
 MAXSEATNUM6 = 6
 NORTH = 30.598071
+CHENGDULAT = 30.6
+LONGDISlIMT = 4500
+SEARCHLOOP = 500
 
 
 class DIST:
+
+    def getTheSpecifyAndNormal(self,specifyDriverDic, normalPassengerDic, resdict):
+        for element in resdict:
+            if 'driver' not in element.keys() or element['driver'] is None or element['driver'] is u"":
+                normalPassengerDic.append(element)
+            else:
+                specifyDriverDic.append(element)
+
+    # 获取指定上车司机的乘客订单
+    def getTheSpecifyDriverOrder(self, northOrderID, northOrderLoc, northOrderSeatnum, specifyDriverDic):
+        specifyOrderLoc = []
+        specifyOrderID = []
+        specifyOrderSeatNo = []
+        specifyDriver = []
+        getSpecifyLoc = []
+        getSpecifyID = []
+        getSpecifySN = []
+        carSpecifyList = []
+        for element in specifyDriverDic:
+            tmp = []
+            bdLat = element['bdlat']
+            bdLng = element['bdlng']
+            loc = auxfn.BD2AMap(bdLat, bdLng)
+            gglat = round(loc.lat, 6)
+            gglng = round(loc.lng, 6)
+            poid = element['BID']
+            seatnum = element['seatnum']
+            tmp.append(gglat)
+            tmp.append(gglng)
+            driverID = element['driver']
+            specifyOrderLoc.append(tuple(tmp))  # [(),(),()]
+            specifyOrderID.append(poid)         # [a,b,c]
+            specifyOrderSeatNo.append(seatnum)      # [1,2,3]
+            specifyDriver.append(driverID)         # [101,201,301]
+        dupSpecifyDriver = list(set(specifyDriver))  # 获得唯一的司机标识
+        for element1 in dupSpecifyDriver:
+            repeat = auxfn.getAllIndices(element1, specifyDriver)
+            tmploc = []
+            tmpid = []
+            tmpSN = []
+            for element2 in repeat:
+                tmploc.append(specifyOrderLoc[element2])
+                tmpid.append(specifyOrderID[element2])
+                tmpSN.append(specifyOrderSeatNo[element2])
+            getSpecifyLoc.append(tmploc)   # [[(),(),()],[(),()]]
+            getSpecifyID.append(tmpid)      # [[q,b,c],[d,f]]
+            getSpecifySN.append(tmpSN)      # [[1,1,1],[2,2]]
+        for i in xrange(len(getSpecifyLoc)):
+            if sum(getSpecifySN[i]) is 5 or sum(getSpecifySN[i]) is 6:
+                carSpecifyList.append(getSpecifyID[i])
+            else:
+                cartmp = getSpecifyID[i]
+                passenger = sum(getSpecifySN[i])
+                tmpdelarrange = []
+                for j in xrange(len(getSpecifyLoc[i])):
+                    tdNorthOrderVec = self.getOrderLocVec(northOrderLoc)
+                    neighborhoodIdxVec1 = auxfn.getNeighborhoodIdx(tdNorthOrderVec, getSpecifyLoc[i][j], SEARCHLOOP)
+                    neighborhoodIdxVec = [x for x in neighborhoodIdxVec1 if x not in tmpdelarrange]
+                    if len(neighborhoodIdxVec) >= 1:
+                        for neighbor in neighborhoodIdxVec:
+                            if passenger+sum(northOrderSeatnum[neighbor]) <= MAXSEATNUM6:
+                                cartmp += northOrderID[neighbor]
+                                tmpdelarrange.append(neighbor)
+                                passenger += sum(northOrderSeatnum[neighbor])
+                            else:
+                                continue
+                    if (passenger is 5) or (passenger is 6):  # 当满足条件直接上车
+                        carSpecifyList.append(cartmp)
+                        tmpdelarrange.sort()
+                        for element3 in reversed(tmpdelarrange):
+                            del(northOrderID[element3])
+                            del(northOrderLoc[element3])
+                            del(northOrderSeatnum[element3])
+                        break
+                    elif j is len(getSpecifyLoc[i])-1:    # 当最后一个人都没有找到同伴就直接上车
+                        carSpecifyList.append(cartmp)
+                        tmpdelarrange.sort()
+                        for element3 in reversed(tmpdelarrange):
+                            del (northOrderID[element3])
+                            del (northOrderLoc[element3])
+                            del (northOrderSeatnum[element3])
+        return carSpecifyList
 
     # 初步处理数据，传入json字符串resdict,订单人数=5/6的存入getonthecar,getonthecarloc,getonthecarseatnum
     def getAllRepeatData(self, repeatpoid, repeatloc, repeatseatnum, getonthecar, getonthecarloc, getonthecarseatnum, resdict):
@@ -160,16 +247,33 @@ class DIST:
                 getonthecarseatnum.append(RMMTSseatnum[i])
 
     # 检查乘客在车上呆的时间是否满足小于最大时间
-    def checkTimeLimitCondition(self, maxTimeLimit, currentPoint, nextPoint, airport, currentScheduleVec):
+    def checkTimeLimitCondition(self, maxTimeLimit, currentPoint, nextPoint, airport, currentScheduleVec, currentPasIdx, nexPoinIdx):
         GTI = mapAPI.AMapAPI()
         deltaT = GTI.getTimeDistVec(nextPoint, currentPoint, 1)
         nextPoint2airportTime = GTI.getTimeDistVec(airport, nextPoint, 1)
         if np.sum(currentScheduleVec) + deltaT + nextPoint2airportTime - currentScheduleVec[0] <= maxTimeLimit:
             currentScheduleVec.append(deltaT[0])
+            currentPasIdx.append(nexPoinIdx)
             currentScheduleVec[0] = nextPoint2airportTime[0]
             return True
         else:
             return False
+
+    def checkLongdiscondition(self, currenPasIdxVec, allOrderLoc, nexpasIdx):
+        nextpassenger = []
+        for i in xrange(len(nexpasIdx)):
+            longDist = 0
+            if len(currenPasIdxVec) is 1:
+                longDist += auxfn.calcDist((CHENGDULAT, allOrderLoc[currenPasIdxVec[0]][1]), (CHENGDULAT, allOrderLoc[nexpasIdx[i]][1]))
+            else:
+                for j in xrange(len(currenPasIdxVec)):
+                    longDist += auxfn.calcDist((CHENGDULAT, allOrderLoc[currenPasIdxVec[j]][1]), ((CHENGDULAT, allOrderLoc[currenPasIdxVec[j+1]][1])))
+                    if j+1 is len(currenPasIdxVec)-1:
+                        longDist += auxfn.calcDist((CHENGDULAT, allOrderLoc[currenPasIdxVec[j+1]][1]), (CHENGDULAT, allOrderLoc[nexpasIdx[i]][1]))
+                        break
+            if longDist <= LONGDISlIMT:
+                nextpassenger.append(nexpasIdx[i])
+        return nextpassenger
 
     # 将orderLocList=[(lat1,lng1),(lat2,lng2)]，转换为2-Darray orderLocVec = [[lat1 lng],[lat2 lng2]]
     def getOrderLocVec(self, orderLocList):
@@ -208,7 +312,7 @@ class DIST:
         for i in xrange(len(carList)):
             car = []
             for element in carList[i]:
-                car.append(orderID[element])
+                car += orderID[element]
             carOrderList.append(car)
         return carOrderList
 
@@ -249,4 +353,18 @@ class DIST:
                 car.append(tmp)
             hasgetonthecarorderandtime.append(car)
         return hasgetonthecarorderandtime
+
+# 使用tsp算法进行排序（f**k this tsp）
+    def sortPassenger(self, carList, northOrderLoc):
+        sortcarList =[]
+        for element in carList:
+            onecarpassenger = []
+            for element2 in element:
+                onecarpassenger.append(northOrderLoc[element2])
+            t = tsp(onecarpassenger)
+            t.solve()
+            sortcarList.append(t.result)
+        return sortcarList
+
+
 
