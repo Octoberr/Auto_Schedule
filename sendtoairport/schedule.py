@@ -1,4 +1,4 @@
-# coding:utf-8
+﻿# coding:utf-8
 
 """
 Donghui Chen, Wangmeng Song
@@ -11,7 +11,7 @@ June 30,2017
 """
 import numpy as np
 import copy
-import tsp
+
 
 import knapsack
 import auxfn
