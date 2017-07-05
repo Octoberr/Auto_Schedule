@@ -1,4 +1,4 @@
-﻿# coding:utf-8
+# coding:utf-8
 
 """
 Donghui Chen, Wangmeng Song
@@ -11,7 +11,6 @@ June 30,2017
 """
 import numpy as np
 import copy
-
 
 import knapsack
 import auxfn
@@ -74,41 +73,41 @@ class DIST:
             getSpecifyLoc.append(tmploc)   # [[(),(),()],[(),()]]
             getSpecifyID.append(tmpid)      # [[q,b,c],[d,f]]
             getSpecifySN.append(tmpSN)      # [[1,1,1],[2,2]]
-        for i in xrange(len(getSpecifyLoc)):
-            if sum(getSpecifySN[i]) is 5 or sum(getSpecifySN[i]) is 6:
-                carSpecifyList.append(getSpecifyID[i])
-            else:
-                cartmp = getSpecifyID[i]
-                passenger = sum(getSpecifySN[i])
-                tmpdelarrange = []
-                for j in xrange(len(getSpecifyLoc[i])):
-                    tdNorthOrderVec = self.getOrderLocVec(northOrderLoc)
-                    neighborhoodIdxVec1 = auxfn.getNeighborhoodIdx(tdNorthOrderVec, getSpecifyLoc[i][j], SEARCHLOOP)
-                    neighborhoodIdxVec = [x for x in neighborhoodIdxVec1 if x not in tmpdelarrange]
-                    if len(neighborhoodIdxVec) >= 1:
-                        for neighbor in neighborhoodIdxVec:
-                            if passenger+sum(northOrderSeatnum[neighbor]) <= MAXSEATNUM6:
-                                cartmp += northOrderID[neighbor]
-                                tmpdelarrange.append(neighbor)
-                                passenger += sum(northOrderSeatnum[neighbor])
-                            else:
-                                continue
-                    if (passenger is 5) or (passenger is 6):  # 当满足条件直接上车
-                        carSpecifyList.append(cartmp)
-                        tmpdelarrange.sort()
-                        for element3 in reversed(tmpdelarrange):
-                            del(northOrderID[element3])
-                            del(northOrderLoc[element3])
-                            del(northOrderSeatnum[element3])
-                        break
-                    elif j is len(getSpecifyLoc[i])-1:    # 当最后一个人都没有找到同伴就直接上车
-                        carSpecifyList.append(cartmp)
-                        tmpdelarrange.sort()
-                        for element3 in reversed(tmpdelarrange):
-                            del (northOrderID[element3])
-                            del (northOrderLoc[element3])
-                            del (northOrderSeatnum[element3])
-        return carSpecifyList
+        # for i in xrange(len(getSpecifyLoc)):
+        #     if sum(getSpecifySN[i]) is 5 or sum(getSpecifySN[i]) is 6:
+        #         carSpecifyList.append(getSpecifyID[i])
+        #     else:
+        #         cartmp = getSpecifyID[i]
+        #         passenger = sum(getSpecifySN[i])
+        #         tmpdelarrange = []
+        #         for j in xrange(len(getSpecifyLoc[i])):
+        #             tdNorthOrderVec = self.getOrderLocVec(northOrderLoc)
+        #             neighborhoodIdxVec1 = auxfn.getNeighborhoodIdx(tdNorthOrderVec, getSpecifyLoc[i][j], SEARCHLOOP)
+        #             neighborhoodIdxVec = [x for x in neighborhoodIdxVec1 if x not in tmpdelarrange]
+        #             if len(neighborhoodIdxVec) >= 1:
+        #                 for neighbor in neighborhoodIdxVec:
+        #                     if passenger+sum(northOrderSeatnum[neighbor]) <= MAXSEATNUM6:
+        #                         cartmp += northOrderID[neighbor]
+        #                         tmpdelarrange.append(neighbor)
+        #                         passenger += sum(northOrderSeatnum[neighbor])
+        #                     else:
+        #                         continue
+        #             if (passenger is 5) or (passenger is 6):  # 当满足条件直接上车
+        #                 carSpecifyList.append(cartmp)
+        #                 tmpdelarrange.sort()
+        #                 for element3 in reversed(tmpdelarrange):
+        #                     del(northOrderID[element3])
+        #                     del(northOrderLoc[element3])
+        #                     del(northOrderSeatnum[element3])
+        #                 break
+        #             elif j is len(getSpecifyLoc[i])-1:    # 当最后一个人都没有找到同伴就直接上车
+        #                 carSpecifyList.append(cartmp)
+        #                 tmpdelarrange.sort()
+        #                 for element3 in reversed(tmpdelarrange):
+        #                     del (northOrderID[element3])
+        #                     del (northOrderLoc[element3])
+        #                     del (northOrderSeatnum[element3])
+        return getSpecifyID
 
     # 初步处理数据，传入json字符串resdict,订单人数=5/6的存入getonthecar,getonthecarloc,getonthecarseatnum
     def getAllRepeatData(self, repeatpoid, repeatloc, repeatseatnum, getonthecar, getonthecarloc, getonthecarseatnum, resdict):
