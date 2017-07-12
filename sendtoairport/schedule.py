@@ -8,6 +8,8 @@ Wangmeng Song
 June 17,2017
 June 29, 2017
 June 30,2017
+改BUG指派司机一辆车超过6个人的情况
+July 12,2017
 """
 import numpy as np
 import copy
@@ -73,7 +75,40 @@ class DIST:
             getSpecifyLoc.append(tmploc)   # [[(),(),()],[(),()]]
             getSpecifyID.append(tmpid)      # [[q,b,c],[d,f]]
             getSpecifySN.append(tmpSN)      # [[1,1,1],[2,2]]
-        # for i in xrange(len(getSpecifyLoc)):
+        for i in range(len(getSpecifySN)):
+            if sum(getSpecifySN[i]) <= MAXSEATNUM6:
+                carSpecifyList.append(getSpecifyID[i])
+            else:
+                tmpspecialID = copy.copy(getSpecifyID[i])
+                tmpspecialseats = copy.copy(getSpecifySN[i])
+                allseatnums = sum(tmpspecialseats)
+                needcar = allseatnums/MAXSEATNUM6
+                leftpas = allseatnums % MAXSEATNUM6
+                if leftpas is 0:  # 刚好能坐整数辆车
+                    for n in range(needcar):
+                        sixpassengeer = knapsack.zeroOneKnapsack(tmpspecialseats, MAXSEATNUM6)
+                        storeindex = [j for j, x in enumerate(sixpassengeer) if x is 1]
+                        tmpstoreID = []
+                        for idx in storeindex:
+                            tmpstoreID.append(tmpspecialID[idx])
+                        carSpecifyList.append(tmpstoreID)
+                        for delidx in reversed(storeindex):
+                            del (tmpspecialID[delidx])
+                            del (tmpspecialseats[delidx])
+                else:  # 人数刚好不能坐辆车
+                    for n in range(needcar):
+                        average = allseatnums/(needcar+1)
+                        averagepass = knapsack.zeroOneKnapsack(tmpspecialseats, average)
+                        storeindex = [j for j, x in enumerate(averagepass) if x is 1]
+                        tmpstoreID = []
+                        for idx in storeindex:
+                            tmpstoreID.append(tmpspecialID[idx])
+                        carSpecifyList.append(tmpstoreID)
+                        for delidx in reversed(storeindex):
+                            del (tmpspecialID[delidx])
+                            del (tmpspecialseats[delidx])
+                    carSpecifyList.append(tmpspecialID)
+                    # for i in xrange(len(getSpecifyLoc)):
         #     if sum(getSpecifySN[i]) is 5 or sum(getSpecifySN[i]) is 6:
         #         carSpecifyList.append(getSpecifyID[i])
         #     else:
@@ -107,7 +142,7 @@ class DIST:
         #                     del (northOrderID[element3])
         #                     del (northOrderLoc[element3])
         #                     del (northOrderSeatnum[element3])
-        return getSpecifyID
+        return carSpecifyList
 
     # 初步处理数据，传入json字符串resdict,订单人数=5/6的存入getonthecar,getonthecarloc,getonthecarseatnum
     def getAllRepeatData(self, repeatpoid, repeatloc, repeatseatnum, getonthecar, getonthecarloc, getonthecarseatnum, resdict):
