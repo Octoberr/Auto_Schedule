@@ -14,21 +14,21 @@ from scipy.spatial import cKDTree
 from scipy import inf
 from sklearn.neighbors import NearestNeighbors
 
-MAXANGLE = 15
-# 经度分割(高德)
-longDistinguish = 104.067564
+MAXANGLE = 16
+# 经度分割(百度)
+longDistinguish = 104.074086
 # 分割线左边判断角度的点和距离
-leftCheckDirection = [30.604480, 104.034234]
+leftCheckDirection = [30.610773, 104.040650]
 # 分割线右边判断角度的点
-rightCheckDirection = [30.598071, 104.067564]
+rightCheckDirection = [30.604043, 104.074086]
 # 分割线右边特定区域
-rightLowerLoc = [30.598071, 104.067564]
-rightHigherLoc = [30.620306, 104.085186]
+rightLowerLoc = [30.604043, 104.074086]
+rightHigherLoc = [30.626035, 104.091799]
 # 分割线左边特定区域
-leftLowerLoc = [30.604507, 104.034213]
-leftHigherLoc = [30.620131, 104.067564]
+leftLowerLoc = [30.610773, 104.040650]
+leftHigherLoc = [30.626098, 104.074086]
 
-AMAPKEYCOORDINATE = [30.593084, 104.034047]  # 高速交汇点
+AMAPKEYCOORDINATE = [30.599374, 104.040454]  # 高速交汇点
 
 
 class Location:

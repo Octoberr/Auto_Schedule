@@ -21,10 +21,12 @@ import mapAPI
 AMAPAIRPORTCOORDINATE = [30.574590, 103.955020]
 MAXSEATNUM5 = 5
 MAXSEATNUM6 = 6
-NORTH = 30.598071
+NORTH = 30.604043
 CHENGDULAT = 30.6
 LONGDISlIMT = 4500
 SEARCHLOOP = 500
+# 经度分割(百度)
+longDistinguish = 104.074086
 
 
 class DIST:
@@ -35,6 +37,19 @@ class DIST:
                 normalPassengerDic.append(element)
             else:
                 specifyDriverDic.append(element)
+
+    def leftandrightgetonthecar(self, getonthecar, northOrderID, northOrderLoc, ):
+        leftgetonthecar = []
+        rightgetonthtecar = []
+        for i in range(len(northOrderLoc)):
+            if northOrderLoc[i][1] <= longDistinguish:
+                leftgetonthecar += northOrderID[i]
+            else:
+                rightgetonthtecar += northOrderID[i]
+        if len(leftgetonthecar) is not 0:
+            getonthecar.append(leftgetonthecar)
+        if len(rightgetonthtecar) is not 0:
+            getonthecar.append(rightgetonthtecar)
 
     # 获取指定上车司机的乘客订单
     def getTheSpecifyDriverOrder(self, northOrderID, northOrderLoc, northOrderSeatnum, specifyDriverDic):

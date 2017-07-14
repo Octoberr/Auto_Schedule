@@ -7,6 +7,7 @@ May 15, 2017
 June 20, 2017
 June 29, 2017
 June 30, 2017
+July 13, 2017
 """
 
 import numpy as np
@@ -16,10 +17,10 @@ import schedule
 import mapAPI
 import auxfn
 
-AMAPKEYCOORDINATE = [30.593084, 104.034047]  # 高速交汇点
+AMAPKEYCOORDINATE = [30.599403, 104.040368]  # 高速交汇点
 AMAPAIRPORTCOORDINATE = [30.574590, 103.955020]  # 成都机场
-TIANFUSQUIRE = [30.598071, 104.067665]
-SEARCHRADIUS = 1500  # 1500m的范围
+TIANFUSQUIRE = [30.604043, 104.074086]
+SEARCHRADIUS = 1000  # 1500m的范围
 CARSEATS = 6     # 一辆车最大乘客为6个人
 TIMELIMIT = 6000    # 时间限制为6000s
 # event = threading.Event()  # 设置全局变量event为True
@@ -65,18 +66,25 @@ def startschedul(resdict):
         # 寻找一个地点乘客人数==5的周围是否存在1个订单1个人的情况
         dis.getTheFivePersonAroundOnlyOne(getonthecar, getonthecarLoc, getonthecarseatnum,
                                           RMMTSixpassengerOrderID, RMMTSixpassengerLoc, RMMTSixpassengerseatnum)
-    northOrderID = []
-    northOrderLoc = []
-    northOrderSeatnum = []
+    northOrderID = []   # [[a,b,c],[]]
+    northOrderLoc = []   # [(lat,lng),()]
+    northOrderSeatnum = []  # [[1,1,1],[]]
     # 第四次处理超过处理范围的南边的订单将不去接送
     dis.distinguish(getonthecar, getonthecarLoc, getonthecarseatnum, RMMTSixpassengerOrderID, RMMTSixpassengerLoc, RMMTSixpassengerseatnum, northOrderID, northOrderLoc, northOrderSeatnum)
     # 处理指定司机的订单
     if len(specifyDriverDic) > 0:
         specifyDriverOrder = dis.getTheSpecifyDriverOrder(northOrderID, northOrderLoc, northOrderSeatnum, specifyDriverDic)
     orderNum = len(northOrderLoc)     # 进入排班算法的总地点数
-    if orderNum > 1:
+    seatNumVec = dis.getOrderNumVec(northOrderSeatnum)  # 二维的乘客人数转换为与地点对应的一维数组 [3, ]
+    if sum(seatNumVec) <= 6:
+        dis.leftandrightgetonthecar(getonthecar, northOrderID, northOrderLoc)
+        if len(specifyDriverDic) is not 0:
+            AllCarOrder = getonthecar + specifyDriverOrder
+        else:
+            AllCarOrder = getonthecar
+        return AllCarOrder
+    else:
         orderVec = dis.getOrderLocVec(northOrderLoc)     # 一维的经纬度列表转换为二维的经纬度数组
-        seatNumVec = dis.getOrderNumVec(northOrderSeatnum)    # 二维的乘客人数转换为与地点对应的一维数组
         keypointDistVec = auxfn.calcDistVec(TIANFUSQUIRE, orderVec)    # 获取每个地点到天府高速交汇点的一维数组
         # Calculate the time distance from airport for each order
         airportTimeDistVec = GTI.getTimeDistVec(AMAPAIRPORTCOORDINATE, orderVec, orderNum)  # 获取每个地点到机场的时间距离
@@ -84,7 +92,7 @@ def startschedul(resdict):
             firstPassengerIdx = np.argmax(keypointDistVec)  # 寻找距离机场最远的第一个上车的人
             arrangedPassengerIdx.append(firstPassengerIdx)  # 存储地点位置的索引[3,4,1,0]
             currentScheduleVec.append(airportTimeDistVec[firstPassengerIdx])  # 存储时间的索引，2017/6/19时间已经不再使用
-            currentPassengerIdx.append(firstPassengerIdx)
+            currentPassengerIdx.append(firstPassengerIdx)  # 当前一辆车的乘客
             numPassenger = seatNumVec[firstPassengerIdx]    # 每辆车上的乘客
             keypointDistVec[firstPassengerIdx] = 0  # 找到后进行虚拟删除，将值赋为0
             while numPassenger < CARSEATS:
@@ -169,18 +177,6 @@ def startschedul(resdict):
             else:
                 AllCarOrder = carOrderList + getonthecar + specifyDriverOrder
             return AllCarOrder
-    elif orderNum is 1:
-        if len(specifyDriverDic) is 0:
-            AllCarOrder = northOrderID + getonthecar
-        else:
-            AllCarOrder = northOrderID + getonthecar + specifyDriverOrder
-        return AllCarOrder
-    else:
-        if len(specifyDriverDic) is not 0:
-            AllCarOrder = getonthecar + specifyDriverOrder
-        else:
-            AllCarOrder = getonthecar
-        return AllCarOrder
 # event.set()
 
 
