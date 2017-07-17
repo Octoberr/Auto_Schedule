@@ -268,6 +268,7 @@ class DIST:
                             if len(RMMTSseatnum[element]) is 1 and RMMTSseatnum[element][0] is 1:
                                 frelement.append(element)
                                 getonthecar[i].append(RMMTSID[element][0])
+                                break
                             else:
                                 continue
                     else:
@@ -277,8 +278,7 @@ class DIST:
             else:
                 continue
         if len(frelement) is not 0:
-            frelement.sort()
-            for element2 in reversed(frelement):
+            for element2 in frelement:
                 RMMTSID.pop(element2)
                 RMMTSLoc.pop(element2)
                 RMMTSseatnum.pop(element2)
