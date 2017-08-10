@@ -1,32 +1,24 @@
-#coding:utf-8
+# coding:utf-8
 
 """
 Donghui Chen, Wangmeng Song
 May 15, 2017
 修改 Wangmeng Song
 June 21, 2017
+July 21,2017
 """
 
 import math
 import geopy.distance
 import numpy as np
-from scipy.spatial import cKDTree
 from scipy import inf
 from sklearn.neighbors import NearestNeighbors
 
-MAXANGLE = 16
-# 经度分割(百度)
-longDistinguish = 104.074086
 # 分割线左边判断角度的点和距离
 leftCheckDirection = [30.610773, 104.040650]
 # 分割线右边判断角度的点
 rightCheckDirection = [30.604043, 104.074086]
-# 分割线右边特定区域
-rightLowerLoc = [30.604043, 104.074086]
-rightHigherLoc = [30.626035, 104.091799]
-# 分割线左边特定区域
-leftLowerLoc = [30.610773, 104.040650]
-leftHigherLoc = [30.626098, 104.074086]
+TIANFUSQUIRE = [30.604043, 104.074086]
 
 AMAPKEYCOORDINATE = [30.599374, 104.040454]  # 高速交汇点
 
@@ -62,7 +54,7 @@ def BD2AMap(bdLat, bdLng):
     """
     Coordinate convertion: from BD to Gaode 
     """
-    # 因为没有使用高德计算时间的接口所以改回百度
+    #因为没有使用高德计算时间的接口所以改回百度
     # x_pi = 3.14159265358979324 * 3000.0 / 180.0
     # x = bdLng - 0.0065
     # y = bdLat - 0.006
@@ -116,8 +108,8 @@ def calcDistVec(destination, originVec):
 #             break
 #         neighborhoodIdx.append(index)
 #     return neighborhoodIdx
-
-def getNeighborhoodIdx(points, center, radius):
+# 寻找周围的的人东为1，西为2，1的两边可以选，2就只能选2
+def getNeighborhoodIdx(points, center, radius, firstPassengerIdx, sidevec):
     # the distance of two points is defined as sqrt( (latA-latB)^2 + (lngA-lngB)^2 )
     # distance of 0.01 in lats and lngs is about 1.1km
     listCenter = [center]
@@ -132,11 +124,19 @@ def getNeighborhoodIdx(points, center, radius):
     for index, distance in zip(indices, distances):
         npIndex = index
         npDistance = distance
-    for i in range(len(npIndex)):
-        if npDistance[i] <= radius:
-            neighborhoodIdx.append(npIndex[i])
-        else:
-            break
+    if sidevec[firstPassengerIdx] == 1:
+        for i in range(len(npIndex)):
+                if npDistance[i] <= radius:
+                    neighborhoodIdx.append(npIndex[i])
+                else:
+                    break
+    else:
+        for i in range(len(npIndex)):
+            if sidevec[npIndex[i]] == 2:
+                if npDistance[i] <= radius:
+                    neighborhoodIdx.append(npIndex[i])
+                else:
+                    break
     return neighborhoodIdx
 
 
@@ -164,14 +164,25 @@ def angleBetweenVectorsDegrees(A, vertex, C):
     lat = vertexR[0]
     sideA[1] *= math.cos(lat)
     sideC[1] *= math.cos(lat)
-    return np.degrees(math.acos(np.dot(sideA, sideC) / (np.linalg.norm(sideA) * np.linalg.norm(sideC))))
+    direct = np.degrees(math.acos(np.dot(sideA, sideC) / (np.linalg.norm(sideA) * np.linalg.norm(sideC))))
+    return direct
 
 
 def checkDirectionCondition(currentPoint, nextPoint):
     # 检查下一个地点是否与现在的行驶方向顺路，顺路的定义是夹角小于maxAngle
-    # if currentPoint[1] < longDistinguish:
-    if (angleBetweenVectorsDegrees(currentPoint, rightCheckDirection, nextPoint) < MAXANGLE) or\
-            (angleBetweenVectorsDegrees(currentPoint, leftCheckDirection, nextPoint) < MAXANGLE):
+    # 角度随到天府交汇点的距离递增
+    nextPointToTianFudist = calcDist(nextPoint, TIANFUSQUIRE)
+    if nextPointToTianFudist > 8000:
+        MAXANGLE = 16
+    elif nextPointToTianFudist > 5000 and nextPointToTianFudist <= 8000:
+        MAXANGLE = 21
+    elif nextPointToTianFudist > 3500 and nextPointToTianFudist <= 5000:
+        MAXANGLE = 26
+    elif nextPointToTianFudist <= 3500:
+        MAXANGLE = 36
+    if angleBetweenVectorsDegrees(currentPoint, rightCheckDirection, nextPoint) <= MAXANGLE:
+        return True
+    elif angleBetweenVectorsDegrees(currentPoint, leftCheckDirection, nextPoint) <= MAXANGLE:
         return True
     else:
         return False
@@ -182,58 +193,53 @@ def checkDirectionCondition(currentPoint, nextPoint):
     #         return False
 
 
-def getSortedPointIdx(points, currentPoint):
-    # 获取当前点到所有订单地点的距离按照从小到大排序，并且下一个点需要更靠近终点
-    MAXRADIUS = 110000         # this corresponds to 110km, which is almost true for most of our case.
-    neighborhoodIdx = getNeighborhoodIdx(points, currentPoint, MAXRADIUS)
+# 当前点side为1可以选择所有的点找周围的点，当前点为2就只能找2
+def getSortedPointIdx(points, currentPoint, sidevec, currenside):
+    from recomTimeOnTheBus import eastandwestside
+    # 获取当前点到所有订单地点的距离按照从小到大排序
+    # 获取当前点到其余所有点的距离
+    sd = eastandwestside.SIDE()
+    listCurrentPoint = list(currentPoint)
+    pointDistVec = calcDistVec(listCurrentPoint, points)
+    # 获得pointDistVec从小到大的index排序[2,0,1,3]!!!下标排序
+    pointSotedIndex = sorted(range(len(pointDistVec)), key=lambda k: pointDistVec[k])
     closestPointIdx = []
-    if currentPoint[1] < longDistinguish:
-        for i in xrange(len(neighborhoodIdx)):
-            if neighborhoodIdx[i] == inf:
-                break
-            if (points[neighborhoodIdx[i]][0] > leftLowerLoc[0]) and \
-                    (points[neighborhoodIdx[i]][0] < leftHigherLoc[0]) and \
-                    (points[neighborhoodIdx[i]][1] > leftLowerLoc[1]) and \
-                    (points[neighborhoodIdx[i]][1] < leftHigherLoc[1]) and \
-                    (currentPoint[0] > leftLowerLoc[0]) and \
-                    (currentPoint[0] < leftHigherLoc[0]) and \
-                    (currentPoint[1] > leftLowerLoc[1]) and \
-                    (currentPoint[1] < leftHigherLoc[1]):
-                closestPointIdx.append(neighborhoodIdx[i])
-            elif (points[neighborhoodIdx[i]][0] > leftLowerLoc[0]) and \
-                    (points[neighborhoodIdx[i]][0] < leftHigherLoc[0]) and \
-                    (points[neighborhoodIdx[i]][1] > leftLowerLoc[1]) and \
-                    (points[neighborhoodIdx[i]][1] < leftHigherLoc[1]):
-                if checkDistCondition(currentPoint, points[neighborhoodIdx[i]], rightCheckDirection):
-                    closestPointIdx.append(neighborhoodIdx[i])
+    if currenside == 1:
+        for index in pointSotedIndex:
+            if checkDistCondition(currentPoint, points[index], AMAPKEYCOORDINATE) and \
+                    checkDirectionCondition(currentPoint, points[index]):
+                closestPointIdx.append(index)
+                continue
+            elif sd.eastpick(points[index]):
+                closestPointIdx.append(index)
+                continue
+            elif sd.allpick(points[index]):
+                closestPointIdx.append(index)
+                continue
+            elif sd.westpick(points[index]):
+                closestPointIdx.append(index)
+                continue
             else:
-                if checkDistCondition(currentPoint, points[neighborhoodIdx[i]], rightCheckDirection) and \
-                        checkDirectionCondition(currentPoint, points[neighborhoodIdx[i]]):
-                    closestPointIdx.append(neighborhoodIdx[i])
+                continue
+        return closestPointIdx
     else:
-        for i in xrange(len(neighborhoodIdx)):
-            if neighborhoodIdx[i] == inf:
-                break
-            if (points[neighborhoodIdx[i]][0] > rightLowerLoc[0]) and \
-                    (points[neighborhoodIdx[i]][0] < rightHigherLoc[0]) and \
-                    (points[neighborhoodIdx[i]][1] > rightLowerLoc[1]) and \
-                    (points[neighborhoodIdx[i]][1] < rightHigherLoc[1]) and \
-                    (currentPoint[0] > rightLowerLoc[0]) and \
-                    (currentPoint[0] < rightHigherLoc[0]) and \
-                    (currentPoint[1] > rightLowerLoc[1]) and \
-                    (currentPoint[1] < rightHigherLoc[1]):
-                closestPointIdx.append(neighborhoodIdx[i])
-            elif (points[neighborhoodIdx[i]][0] > rightLowerLoc[0]) and \
-                    (points[neighborhoodIdx[i]][0] < rightHigherLoc[0]) and \
-                    (points[neighborhoodIdx[i]][1] > rightLowerLoc[1]) and \
-                    (points[neighborhoodIdx[i]][1] < rightHigherLoc[1]):
-                if checkDistCondition(currentPoint, points[neighborhoodIdx[i]], AMAPKEYCOORDINATE):
-                    closestPointIdx.append(neighborhoodIdx[i])
+        for index in pointSotedIndex:
+            if sidevec[index] == 2:
+                if checkDistCondition(currentPoint, points[index], rightCheckDirection) and \
+                        checkDirectionCondition(currentPoint, points[index]):
+                    closestPointIdx.append(index)
+                    continue
+                elif sd.westpick(points[index]):
+                    closestPointIdx.append(index)
+                    continue
+                elif sd.allpick(points[index]):
+                    closestPointIdx.append(index)
+                    continue
+                else:
+                    continue
             else:
-                if checkDistCondition(currentPoint, points[neighborhoodIdx[i]], AMAPKEYCOORDINATE) and \
-                     checkDirectionCondition(currentPoint, points[neighborhoodIdx[i]]):
-                    closestPointIdx.append(neighborhoodIdx[i])
-    return closestPointIdx
+                continue
+        return closestPointIdx
 
 
 def getAllIndices(element, alist):

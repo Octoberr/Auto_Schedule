@@ -14,7 +14,7 @@ from operator import itemgetter
 from sendtoairport import StartSchedule
 
 
-# 将订单信息转换为json数组[{numberoforder:3,OrderInfos:[{orderpoid:gfg,duration:1800},{orderpoid:jhj,duration:1800}]},{....}]
+# 将订单信息转换为json数组[{numberoforder:3,OrderInfos:[{orderpoid:gfg,pickupTime:1800},{orderpoid:jhj,pickupTime:1800}]},{....}]
 def incodejs(timepointVec, scheduleDataVec):
     car = []
     for i in xrange(len(timepointVec)):
@@ -31,6 +31,21 @@ def incodejs(timepointVec, scheduleDataVec):
             car.append(d)
     jsondatar = json.dumps(car, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
     return jsondatar
+# def incodejs(scheduleDataAndTime):
+#     car = []
+#     for element in scheduleDataAndTime:
+#         d = {}
+#         d['numberoforder'] = len(element)
+#         ord = []
+#         for element2 in element:
+#             f = {}
+#             f['BID'] = element2['BID']
+#             f['pickupTime'] = element2['pickupTime']
+#             ord.append(f)
+#         d['OrderInfos'] = ord
+#         car.append(d)
+#     jsondatar = json.dumps(car, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
+#     return jsondatar
 # def incodejs(AllscheduleData, scheduleDataVec):
 #     car = []
 #     tmpIdx = 1
@@ -69,6 +84,9 @@ def geteachTimepointSchedule(AllscheduleData):
                 scheduleDataVec.append(onlyone)
     # jsondata = incodejs(AllscheduleData, scheduleDataVec)
     jsondata = incodejs(timepointVec, scheduleDataVec)
+    # sc = schedulerecomtime.SCHEDULETIME()
+    # scheduleAndTime = sc.incressPickupTime(scheduleDataVec, AllscheduleData)
+    # jsondata = incodejs(scheduleAndTime)
     return jsondata
 
 

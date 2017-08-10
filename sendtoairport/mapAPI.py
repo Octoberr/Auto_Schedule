@@ -78,3 +78,20 @@ class AMapAPI:
         #         result = self.JSDecode(JSDistance)
         #         for j in xrange(len(result)): distVec[(i * batchNum) + j] = result[j][MEASUREMENT]
         return distVec
+
+        # #[锦里，九眼桥，锦江宾馆, 仁恒置地, 桐梓林, 骡马寺]
+        # currentPoint = [30.662447, 104.072469] # 天府广场
+
+    # points = [[30.650817, 104.056385], [30.645582, 104.095192], [30.654087, 104.072528],
+    #           [30.658646, 104.072563], [30.621274, 104.073749], [30.672531, 104.071962]]
+    # destination = [30.599595,104.040745] # 交界点
+    # search neighborhood points with given center and radius, and sorted from small to large
+    # the distance of two points is defined as sqrt( (latA-latB)^2 + (lngA-lngB)^2 )
+    # difference of 0.01 in lats and lngs is about 1.1km
+
+    # tree = cKDTree(points)
+    # neighborhoodIdx = []  # Put the neighbors of each point here
+    # indices = tree.query_ball_point(points, 0.005)
+    # print "getNeighborhoodIdx: "
+    # for i in range(len(indices)):
+    #     print indices[i]
