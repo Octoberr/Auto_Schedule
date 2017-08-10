@@ -113,7 +113,7 @@ def startschedul(resdict):
         if len(specifyDriverDic) > 0:
             AllCarOrder = getonthecar + specifyDriverOrder
         else:
-            AllCarOrder = getonthecar
+            AllCarOrder = copy.copy(getonthecar)
         return AllCarOrder
     # 如果东边小于等于6，西边大于6,东边上车
     elif sum(seatNumVec[eastareaVec]) <= 6 and sum(seatNumVec[westareaVec]) > 6:
@@ -233,7 +233,7 @@ def startschedul(resdict):
             if len(restorderNo) == 1:
                 getonthecar.append(restorderNo[0])
             if len(specifyDriverDic) == 0:
-                AllCarOrder = getonthecar  # [[a,v,s],[q,w,e,r,f]]
+                AllCarOrder = copy.copy(getonthecar)  # [[a,v,s],[q,w,e,r,f]]
                 return AllCarOrder
             else:
                 AllCarOrder = getonthecar + specifyDriverOrder
