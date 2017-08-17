@@ -11,6 +11,7 @@ June 30,2017
 改BUG指派司机一辆车超过6个人的情况
 July 12,2017
 July 21,2017
+August 16, 2017 修改接人顺序
 """
 import numpy as np
 import copy
@@ -467,53 +468,257 @@ class DIST:
             restorderSeatNo += northOrderSeatnum + westorderSeatNo
             return
         else:
-            delindex = []  # 已经上车的乘客的下标删除
-            # 当2环到2.5环的订单人数大于6，使用knapsack找5或者6个人，剩下的订单看情况再排班
-            outsideSeatVec = outsideNumVec[outsideIndex]  # 2环外的乘客vec,根据array outsideindex得到与array outsideindex一一对应
-            knapsack6 = knapsack.zeroOneKnapsack(outsideSeatVec, MAXSEATNUM6)
-            knapsack5 = knapsack.zeroOneKnapsack(outsideSeatVec, MAXSEATNUM5)
-            while knapsack5[0] == MAXSEATNUM5 or knapsack6[0] == MAXSEATNUM6:
-                if knapsack5[0] == MAXSEATNUM5:
-                    knapsackvalue = knapsack5[1]
-                else:
-                    knapsackvalue = knapsack6[1]
-                tmpgetonthcarid = []
-                tmpgetonthcarloc = []
-                storeindex = [j for j, x in enumerate(knapsackvalue) if x is 1]  # 列表推导式
-                for element1 in storeindex:
-                    tmpgetonthcarid.append(westorderID[outsideIndex[element1]])
-                    tmpgetonthcarloc.append(westorderLoc[outsideIndex[element1]])
-                carpool = [wd for (lc, wd) in sorted(zip([lat[0] for lat in tmpgetonthcarloc], tmpgetonthcarid), reverse=True)]
-                getonthcar.append(flatten(carpool))
-                # 删除在西部已经上车的订单号
-                for element2 in reversed(storeindex):
-                    del (westorderID[outsideIndex[element2]])
-                    del (westorderLoc[outsideIndex[element2]])
-                    del (westorderSeatNo[outsideIndex[element2]])
-                # 删除在二环外已经上车的index，和seatnum
-                outsideIndex = np.delete(outsideIndex, storeindex)
-                outsideSeatVec = np.delete(outsideSeatVec, storeindex)
-                if sum(outsideSeatVec) >= MAXSEATNUM5:
-                    knapsack6 = knapsack.zeroOneKnapsack(outsideSeatVec, MAXSEATNUM6)
-                    knapsack5 = knapsack.zeroOneKnapsack(outsideSeatVec, MAXSEATNUM5)
-                    westoutsideNo = sd.atwest2out(westorderLoc, len(westorderLoc))
-                    outsideIndex = np.where(westoutsideNo <= 1)[0]  # 在2环和2.5环的index
-                    outsideNumVec = self.getOrderNumVec(westorderSeatNo)
-                    outsideSeatVec = outsideNumVec[outsideIndex]
-                elif sum(outsideSeatVec) <=4 and sum(outsideSeatVec) >2:
-                    westoutsideNo = sd.atwest2out(westorderLoc, len(westorderLoc))
-                    outsideIndex = np.where(westoutsideNo <= 1)[0]  # 在2环和2.5环的index
-                    self.coudaofivedingdan(outsideIndex, westorderID, westorderLoc, westorderSeatNo, getonthcar)
-                    restorderNo += northOrderID + westorderID
-                    restorderLoc += northOrderLoc + westorderLoc
-                    restorderSeatNo += northOrderSeatnum + westorderSeatNo
-                    break
-                elif sum(outsideSeatVec) <= 2:
-                    restorderNo += northOrderID + westorderID
-                    restorderLoc += northOrderLoc + westorderLoc
-                    restorderSeatNo += northOrderSeatnum + westorderSeatNo
-                    break
-            return
+            # 当2环到2.5环的订单人数大于6，预先知道需要几辆车，按纬度顺序上车最后剩下的人参与排班
+            outwestID = []  # [[A,,B,C],[D,E,F]]
+            outwestLoc = []  # [(lat1,lng1),(lat2,lng2)]
+            outwestSeatNo = []  # [[1,1,1], [2,1,1]]
+            for outindex in outsideIndex:
+                outwestID.append(westorderID[outindex])
+                outwestLoc.append(westorderLoc[outindex])
+                outwestSeatNo.append(westorderSeatNo[outindex])
+            for outdelinx in reversed(outsideIndex):
+                del (westorderID[outdelinx])
+                del (westorderLoc[outdelinx])
+                del (westorderSeatNo[outdelinx])
+            # 得到2.5环到2环的订单后按照纬度进行排序
+            latQueueIndex = sorted(range(len(outwestLoc)), key=lambda k: outwestLoc[k], cmp=lambda a, b: -1 if a[0] < b[0] else 0)
+            locQueue = [outwestLoc[locindex] for locindex in latQueueIndex]
+            idQueue = [outwestID[idindex] for idindex in latQueueIndex]
+            seatQueue = [outwestSeatNo[seatIndex] for seatIndex in latQueueIndex]
+            outsideSeatVec = self.getOrderNumVec(seatQueue)
+            while sum(outsideSeatVec) >= MAXSEATNUM5:
+                getcarIndex = []
+                tmpcar = []
+                tmploc = []
+                carSeat = 0
+                for i in range(len(idQueue)):
+                    if carSeat + outsideSeatVec[i] > 6:
+                        continue
+                    carSeat += outsideSeatVec[i]
+                    tmpcar.append(idQueue[i])
+                    tmploc.append(locQueue[i])
+                    getcarIndex.append(i)
+                    if carSeat == MAXSEATNUM5 or carSeat == MAXSEATNUM6:
+                        if carSeat == MAXSEATNUM6:
+                            carpool = [wd for (lc, wd) in sorted(zip([lat[0] for lat in tmploc], tmpcar), reverse=True)]
+                            getonthcar.append(flatten(carpool))
+                            for deli in reversed(getcarIndex):
+                                del(locQueue[deli])
+                                del(idQueue[deli])
+                                del(seatQueue[deli])
+                            break
+                        else:
+                            try:
+                                if carSeat + outsideSeatVec[i+1] == MAXSEATNUM6:
+                                    tmpcar.append(idQueue[i+1])
+                                    tmploc.append(locQueue[i+1])
+                                    getcarIndex.append(i+1)
+                                    carpool = [wd for (lc, wd) in sorted(zip([lat[0] for lat in tmploc], tmpcar), reverse=True)]
+                                    getonthcar.append(flatten(carpool))
+                                    for deli in reversed(getcarIndex):
+                                        del (locQueue[deli])
+                                        del (idQueue[deli])
+                                        del (seatQueue[deli])
+                                    break
+                            except:
+                                pass
+                            carpool = [wd for (lc, wd) in sorted(zip([lat[0] for lat in tmploc], tmpcar), reverse=True)]
+                            getonthcar.append(flatten(carpool))
+                            for deli in reversed(getcarIndex):
+                                del (locQueue[deli])
+                                del (idQueue[deli])
+                                del (seatQueue[deli])
+                            break
+                if carSeat == 3 or carSeat == 4:
+                    carpool = [wd for (lc, wd) in sorted(zip([lat[0] for lat in tmploc], tmpcar), reverse=True)]
+                    getonthcar.append(flatten(carpool))
+                    for deli in reversed(getcarIndex):
+                        del (locQueue[deli])
+                        del (idQueue[deli])
+                        del (seatQueue[deli])
+                outsideSeatVec = self.getOrderNumVec(seatQueue)
+            if sum(outsideSeatVec) <= 4 and sum(outsideSeatVec) > 2:
+                self.anotherCouDingdan(idQueue, locQueue, seatQueue, westorderID, westorderLoc, westorderSeatNo, getonthcar)
+                restorderNo += northOrderID + westorderID
+                restorderLoc += northOrderLoc + westorderLoc
+                restorderSeatNo += northOrderSeatnum + westorderSeatNo
+            elif sum(outsideSeatVec) <= 2:
+                restorderNo += northOrderID + westorderID + idQueue
+                restorderLoc += northOrderLoc + westorderLoc + locQueue
+                restorderSeatNo += northOrderSeatnum + westorderSeatNo + seatQueue
+        return
+
+            # latvalue = [MAXSEATNUM6*n for n in range(1, len(idQueue)+1)]
+            # knapsack6 = valueknapsack.zeroOneKnapsack(outsideSeatVec, latvalue, MAXSEATNUM6)
+            # knapsack5 = valueknapsack.zeroOneKnapsack(outsideSeatVec, latvalue, MAXSEATNUM5)
+            # while knapsack5[0] == MAXSEATNUM5 or knapsack6[0] == MAXSEATNUM6:
+            #     if knapsack5[0] == MAXSEATNUM5:
+            #         knapsackindex = knapsack5[1]
+            #     else:
+            #         knapsackindex = knapsack6[1]
+            #     tmpgetonthcarid = []
+            #     tmpgetonthcarloc = []
+            #     for element1 in knapsackindex:
+            #         tmpgetonthcarid.append(idQueue[element1])
+            #         tmpgetonthcarloc.append(locQueue[element1])
+            #     carpool = [wd for (lc, wd) in sorted(zip([lat[0] for lat in tmpgetonthcarloc], tmpgetonthcarid), reverse=True)]
+            #     getonthcar.append(flatten(carpool))
+            #     # 删除在西部已经上车的订单号
+            #     for element2 in reversed(knapsackindex):
+            #         del (idQueue[element2])
+            #         del (locQueue[element2])
+            #         del (seatQueue[element2])
+            #     # 重新获取人数vec
+            #     outsideSeatVec = self.getOrderNumVec(seatQueue)
+            #     latvalue = [MAXSEATNUM6*n for n in range(1, len(idQueue)+1)]
+            #     if sum(outsideSeatVec) >= MAXSEATNUM5:
+            #         knapsack6 = valueknapsack.zeroOneKnapsack(outsideSeatVec, latvalue, MAXSEATNUM6)
+            #         knapsack5 = valueknapsack.zeroOneKnapsack(outsideSeatVec, latvalue, MAXSEATNUM5)
+            #     elif sum(outsideSeatVec) <= 4 and sum(outsideSeatVec) > 2:
+            #         self.anotherCouDingdan(idQueue, locQueue, seatQueue, westorderID, westorderLoc, westorderSeatNo, getonthcar)
+            #         restorderNo += northOrderID + westorderID
+            #         restorderLoc += northOrderLoc + westorderLoc
+            #         restorderSeatNo += northOrderSeatnum + westorderSeatNo
+            #         break
+            #     elif sum(outsideSeatVec) <= 2:
+            #         restorderNo += northOrderID + westorderID + idQueue
+            #         restorderLoc += northOrderLoc + westorderLoc + locQueue
+            #         restorderSeatNo += northOrderSeatnum + westorderSeatNo + seatQueue
+            #         break
+            # return
+            # totalPeople = sum(flatten(outwestSeatNo))
+            # if totalPeople % MAXSEATNUM5 == 0:
+            #     needCars = totalPeople/MAXSEATNUM5
+            #     latQueueIndex = sorted(range(len(outwestLoc)), key=lambda k: outwestLoc[k], cmp=lambda a, b: -1 if a[0] > b[0] else 0)
+            #     locQueue = [westorderLoc[locindex] for locindex in latQueueIndex]
+            #     idQueue = [westorderID[idindex] for idindex in latQueueIndex]
+            #     seatQueue = [westorderSeatNo[seatIndex] for seatIndex in latQueueIndex]
+            #     for car in range(needCars):
+            #         carseat = 0
+            #         getindex = []
+            #         getcar = []
+            #         seatArrayVec = self.getOrderNumVec(seatQueue)
+            #         for onCarIndex in range(len(locQueue)):
+            #             if carseat + seatArrayVec[onCarIndex] > MAXSEATNUM5:
+            #                 continue
+            #             carseat += seatArrayVec[onCarIndex]
+            #             getcar.append(idQueue[onCarIndex])
+            #             getindex.append(onCarIndex)
+            #             if carseat == MAXSEATNUM5:
+            #                 getonthcar.append(flatten(getcar))
+            #                 for delgetindex in reversed(getindex):
+            #                     del (locQueue[delgetindex])
+            #                     del (idQueue[delgetindex])
+            #                     del (seatQueue[delgetindex])
+            #                 break
+            #     return
+            # elif totalPeople % MAXSEATNUM6 == 0:
+            #     needCars = totalPeople/MAXSEATNUM6
+            #     latQueueIndex = sorted(range(len(outwestLoc)), key=lambda k: outwestLoc[k], cmp=lambda a, b: -1 if a[0] > b[0] else 0)
+            #     locQueue = [westorderLoc[locindex] for locindex in latQueueIndex]
+            #     idQueue = [westorderID[idindex] for idindex in latQueueIndex]
+            #     seatQueue = [westorderSeatNo[seatIndex] for seatIndex in latQueueIndex]
+            #     for car in range(needCars):
+            #         carseat = 0
+            #         getindex = []
+            #         getcar = []
+            #         seatArrayVec = self.getOrderNumVec(seatQueue)
+            #         for onCarIndex in range(len(locQueue)):
+            #             if carseat + seatArrayVec[onCarIndex] > MAXSEATNUM6:
+            #                 continue
+            #             carseat += seatArrayVec[onCarIndex]
+            #             getcar.append(idQueue[onCarIndex])
+            #             getindex.append(onCarIndex)
+            #             if carseat == MAXSEATNUM6:
+            #                 getonthcar.append(flatten(getcar))
+            #                 for delgetindex in reversed(getindex):
+            #                     del (locQueue[delgetindex])
+            #                     del (idQueue[delgetindex])
+            #                     del (seatQueue[delgetindex])
+            #                 break
+            #     return
+            # else:
+            #     if totalPeople/MAXSEATNUM5 == totalPeople/MAXSEATNUM6:
+            #         needCars = totalPeople/MAXSEATNUM5
+            #         latQueueIndex = sorted(range(len(outwestLoc)), key=lambda k: outwestLoc[k], cmp=lambda a, b: -1 if a[0] > b[0] else 0)
+            #         locQueue = [westorderLoc[locindex] for locindex in latQueueIndex]
+            #         idQueue = [westorderID[idindex] for idindex in latQueueIndex]
+            #         seatQueue = [westorderSeatNo[seatIndex] for seatIndex in latQueueIndex]
+            #         for car in range(needCars):
+            #             carseat = 0
+            #             getindex = []
+            #             getcar = []
+            #             seatArrayVec = self.getOrderNumVec(seatQueue)
+            #             for onCarIndex in range(len(locQueue)):
+            #                 if carseat + seatArrayVec[onCarIndex] > MAXSEATNUM5:
+            #                     continue
+            #                 carseat += seatArrayVec[onCarIndex]
+            #                 getcar.append(idQueue[onCarIndex])
+            #                 getindex.append(onCarIndex)
+            #                 if carseat == MAXSEATNUM5:
+            #                     getonthcar.append(flatten(getcar))
+            #                     for delgetindex in reversed(getindex):
+            #                         del (locQueue[delgetindex])
+            #                         del (idQueue[delgetindex])
+            #                         del (seatQueue[delgetindex])
+            #                     break
+            #         if sum(flatten(seatQueue)) <= 2:
+            #             restorderNo += northOrderID + westorderID + idQueue
+            #             restorderLoc += northOrderLoc + westorderLoc + locQueue
+            #             restorderSeatNo += northOrderSeatnum + westorderSeatNo + seatQueue
+            #             return
+            #         elif sum(flatten(seatQueue)) <= 4 and sum(flatten(seatQueue)) > 2:
+            #             self.anotherCouDingdan(idQueue, locQueue, seatQueue, westorderID, westorderLoc, westorderSeatNo, getonthcar)
+            #             restorderNo += northOrderID + westorderID
+            #             restorderLoc += northOrderLoc + westorderLoc
+            #             restorderSeatNo += northOrderSeatnum + westorderSeatNo
+            #             return
+            #     else:
+            #         needCars = totalPeople/MAXSEATNUM5
+            #         sixloops = totalPeople % MAXSEATNUM5
+            #         latQueueIndex = sorted(range(len(outwestLoc)), key=lambda k: outwestLoc[k],cmp=lambda a, b: -1 if a[0] > b[0] else 0)
+            #         locQueue = [westorderLoc[locindex] for locindex in latQueueIndex]
+            #         idQueue = [westorderID[idindex] for idindex in latQueueIndex]
+            #         seatQueue = [westorderSeatNo[seatIndex] for seatIndex in latQueueIndex]
+            #         for sixcar in range(sixloops):
+            #             sixcarseat = 0
+            #             sixgetindex = []
+            #             sixgetcar = []
+            #             sixseatArrayVec = self.getOrderNumVec(seatQueue)
+            #             for sixonCarIndex in range(len(locQueue)):
+            #                 if sixcarseat + sixseatArrayVec[sixonCarIndex] > MAXSEATNUM6:
+            #                     continue
+            #                 sixcarseat += sixseatArrayVec[sixonCarIndex]
+            #                 sixgetcar.append(idQueue[sixonCarIndex])
+            #                 sixgetindex.append(sixonCarIndex)
+            #                 if sixcarseat == MAXSEATNUM6:
+            #                     getonthcar.append(flatten(sixgetcar))
+            #                     for sixdelgetindex in reversed(sixgetindex):
+            #                         del (locQueue[sixdelgetindex])
+            #                         del (idQueue[sixdelgetindex])
+            #                         del (seatQueue[sixdelgetindex])
+            #                     break
+            #         for five in range(sixloops, needCars):
+            #             fivecarseat = 0
+            #             fivegetindex = []
+            #             fivegetcar = []
+            #             fiveseatArrayVec = self.getOrderNumVec(seatQueue)
+            #             for fiveonCarIndex in range(len(locQueue)):
+            #                 if fivecarseat + fiveseatArrayVec[fiveonCarIndex] > MAXSEATNUM5:
+            #                     continue
+            #                 fivecarseat += fiveseatArrayVec[fiveonCarIndex]
+            #                 fivegetcar.append(idQueue[fiveonCarIndex])
+            #                 fivegetindex.append(fiveonCarIndex)
+            #                 if fivecarseat == MAXSEATNUM5:
+            #                     getonthcar.append(flatten(fivegetcar))
+            #                     for fivedelgetindex in reversed(fivegetindex):
+            #                         del (locQueue[fivedelgetindex])
+            #                         del (idQueue[fivedelgetindex])
+            #                         del (seatQueue[fivedelgetindex])
+            #                     break
+            #         return
+            # 当2环到2.5环的订单人数大于6，使用knapsack找5或者6个人，剩下的订单看情况再排班（此方法已被证明不适用）
+            # outsideSeatVec = outsideNumVec[outsideIndex]  # 2环外的乘客vec,根据array outsideindex得到与array outsideindex一一对应
 
     def getwestneighber(self, highoutwest, westVec):
         if len(westVec) == 0:
@@ -577,6 +782,50 @@ class DIST:
                 neighborhoodIdx.append(npIndex[i])
                 continue
         return neighborhoodIdx
+
+    # 当超过7人后按照纬度排班剩下的人数在3,4人凑到5，或者6
+    def anotherCouDingdan(self, queueNo, queueLoc, queueSeat, westorderID, westorderLoc, westorderSeatNo, getonthcar):
+        outSeats = sum(flatten(queueSeat))
+        highneighbor = self.getwestneighber(queueLoc[0], westorderLoc)
+        if len(highneighbor) > 0:
+            neighbor = highneighbor
+        else:
+            lowneighbor = self.getlowwestneighber(queueLoc[len(queueLoc) - 1], westorderLoc)
+            neighbor = lowneighbor
+            if len(neighbor) is 0:
+                outcar = flatten(queueNo)
+                getonthcar.append(outcar)
+                return
+        # 西边的订单上车
+        westinsidegeton = []
+        for nextI in neighbor:
+            if outSeats + sum(westorderSeatNo[nextI]) <= 6:
+                queueNo.append(westorderID[nextI])
+                queueLoc.append(westorderLoc[nextI])
+                westinsidegeton.append(nextI)
+                outSeats += sum(westorderSeatNo[nextI])
+                if outSeats == MAXSEATNUM5 or outSeats == MAXSEATNUM6:
+                    outcar = flatten(queueNo)
+                    getonthcar.append(outcar)
+                    westinsidegeton.sort(cmp=lambda a, b: -1 if a > b else 0)
+                    for delinside in westinsidegeton:
+                        del (westorderID[delinside])
+                        del (westorderLoc[delinside])
+                        del (westorderSeatNo[delinside])
+                    return
+        if len(westinsidegeton) == 0:
+            outcar = flatten(queueNo)
+            getonthcar.append(outcar)
+            return
+        else:
+            outcar = flatten(queueNo)
+            getonthcar.append(outcar)
+            westinsidegeton.sort(cmp=lambda a, b: -1 if a > b else 0)
+            for delinside in westinsidegeton:
+                del (westorderID[delinside])
+                del (westorderLoc[delinside])
+                del (westorderSeatNo[delinside])
+            return
 
     # 当2环到2.5环的订单为3,4个时寻找西边的订单凑到5个,找到其他区域的的人然后删除，找到后就直接上车
     def coudaofivedingdan(self, outsideIndex, westorderID, westorderLoc, westorderSeatNo, getonthcar):
