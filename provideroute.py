@@ -40,12 +40,21 @@ def firstprovidetime():
     return retime
 
 
-@app.route('/inchengdu', methods=['post'])
+@app.route('/pingche', methods=['post'])
 def insidetwofive():
     args = request.data
     jsonargs = json.loads(args)
     si = eastandwestside.SIDE()
     side = si.orderinchengdutwofive(jsonargs)
+    return side
+
+
+@app.route('/zhuanche', methods=['post'])
+def specifyinsidetwofive():
+    args = request.data
+    jsonargs = json.loads(args)
+    si = eastandwestside.SIDE()
+    side = si.specificitywholeChengDu(jsonargs)
     return side
 
 

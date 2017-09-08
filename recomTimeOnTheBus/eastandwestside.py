@@ -15,9 +15,11 @@ filedir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()
 filename = u'wholeArea.dbf'
 eastarea = u'eastSide.dbf'
 westoutside = u'westOutSide.dbf'
+eastoutside = u'easttwoanfiveout.dbf'
 eastpick = u'eastPickUpArea.dbf'
 westpick = u'westPickUpArea.dbf'
 allpick = u'allPickUpArea.dbf'
+wholeChengDu =u'zhuanche.dbf'
 
 class SIDE:
     def chengduArea(self, getonthecar, getonthecarLoc, getonthecarseatnum, RMMTSixpassengerOrderID, RMMTSixpassengerLoc, RMMTSixpassengerseatnum, northOrderID, northOrderLoc, northOrderSeatnum):
@@ -79,6 +81,25 @@ class SIDE:
                 westsideNo[i] = 2           # 2表示在西边2环内
         return westsideNo
 
+    def ateast2out(self, eastLoc, orderNo):
+        eastsideNo = np.zeros([orderNo], dtype=int)
+        eastoutfilename = filedir + "/" + eastoutside
+        polys = sf.Reader(eastoutfilename)
+        polygon = polys.shapes()
+        shpfilePoints = []
+        for shape in polygon:
+            shpfilePoints = shape.points
+        polygon = Polygon(shpfilePoints)
+        for i in range(len(eastLoc)):
+            lng = eastLoc[i][1]
+            lat = eastLoc[i][0]
+            point = Point(lng, lat)
+            if polygon.contains(point):
+                eastsideNo[i] = 1         # 1表示在2环到2.5环之间
+            else:
+                eastsideNo[i] = 2           # 2表示在东边2环内
+        return eastsideNo
+
     def orderinchengdutwofive(self, orderdata):
         latfilename = filedir + "/" + filename
         polys = sf.Reader(latfilename)
@@ -91,10 +112,28 @@ class SIDE:
         lat = orderdata['bdlat']
         point = Point(lng, lat)
         if polygon.contains(point):
-            orderdata['inside'] = 1
+            orderdata['inside'] = True
         else:
-            orderdata['inside'] = 0
+            orderdata['inside'] = False
         jsondatar = json.dumps(orderdata, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
+        return jsondatar
+
+    def specificitywholeChengDu(self, SpecificityOrderdata):
+        latfilename = filedir + "/" + wholeChengDu
+        polys = sf.Reader(latfilename)
+        polygon = polys.shapes()
+        shpfilePoints = []
+        for shape in polygon:
+            shpfilePoints = shape.points
+        polygon = Polygon(shpfilePoints)
+        lng = SpecificityOrderdata['bdlng']
+        lat = SpecificityOrderdata['bdlat']
+        point = Point(lng, lat)
+        if polygon.contains(point):
+            SpecificityOrderdata['inside'] = True
+        else:
+            SpecificityOrderdata['inside'] = False
+        jsondatar = json.dumps(SpecificityOrderdata, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
         return jsondatar
 
     def eastpick(self, pickpoint):
@@ -144,10 +183,6 @@ class SIDE:
             return True
         else:
             return False
-
-
-
-
 
 
 

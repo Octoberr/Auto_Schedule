@@ -257,3 +257,9 @@ def getAllIndices(element, alist):
         except ValueError:
             return result
         result.append(offset)
+
+
+# if __name__ == '__main__':
+#     a = [1,1,2,3,1]
+#     c= getAllIndices(2,a)
+#     print c

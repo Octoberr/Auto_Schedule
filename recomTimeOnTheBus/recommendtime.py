@@ -16,6 +16,7 @@ import numpy as np
 import inspect
 import copy
 import json
+import requests
 
 PICKTIME = 3
 DIFDURATION = 5
@@ -25,6 +26,7 @@ TIANFUSQUIRE = [30.604043, 104.074086]
 
 filedir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/" + "area"
 filename = ['region1.dbf', 'region2.dbf', 'region3.dbf', 'region4.dbf', 'region5.dbf', 'region6.dbf']
+TimeTableInfoURL = 'https://prerelease.jichangzhuanxian.com/api/ShiftTime/GetShiftTimeByTakeOffTime'
 
 
 class TIMEANDAREA:
@@ -34,11 +36,11 @@ class TIMEANDAREA:
 
 
 class RECOMDTIME:
-    def getorderinfo(self, resdict):
-        point = Point(resdict['bdlng'], resdict['bdlat'])
-        getdatetime = resdict['date']+resdict['startTime']
+    def getorderareanum(self, lng, lat):
+        point = Point(lng, lat)
+        # getdatetime = resdict['date']+resdict['startTime']
         # print type(getdatetime), getdatetime
-        dateTime = datetime.datetime.strptime(getdatetime, "%Y-%m-%d%H:%M")
+        # dateTime = datetime.datetime.strptime(getdatetime, "%Y-%m-%d%H:%M")
         # print type(datetime), dateTime
         # filename = self.getTxtNmae()
         # print "filename", filename
@@ -52,13 +54,13 @@ class RECOMDTIME:
                 shpfilePoints = shape.points
             polygon = Polygon(shpfilePoints)
             if polygon.contains(point):
-                getonthncartime = dateTime + datetime.timedelta(minutes=i*10)
+                # getonthncartime = dateTime + datetime.timedelta(minutes=i*10)
+                areanum = i
                 # print "上车时间:", getonthncartime
-                break
+                return areanum
             else:
                 continue
                 # print "no data"
-        return getonthncartime
 
     def getOrderLocVec(self, orderLocList):
         orderLocVec = np.zeros([len(orderLocList), 2], dtype=float)
@@ -147,8 +149,23 @@ class RECOMDTIME:
 
     def firstGetTime(self, order):
         info = copy.copy(order)
-        getOnTheCarTime = self.getorderinfo(order)
+        orderlng = info['bdlng']
+        orderlat = info['bdlat']
+        # get the area number
+        areanum = self.getorderareanum(orderlng, orderlat)
+        # 1、获得飞机起飞时间
+        planetakeofftime = info['takeofftime']
+        # 2、获得航段
+        res = requests.post(TimeTableInfoURL, json={"Time": planetakeofftime})
+        dataInfo = res.json()["Data"][0]
+        timetable = dataInfo['TimeCode']
+        # 3、获得航段的接送开始时间
+        starttime = dataInfo['PickupStartTime']
+        getdatetime = info['date'] + starttime
+        dateTime = datetime.datetime.strptime(getdatetime, "%Y-%m-%d%H:%M")
+        getOnTheCarTime = dateTime + datetime.timedelta(minutes=areanum*10)
         # info['pickupTime'] = int(time.mktime(getOnTheCarTime.timetuple()))
+        info['TimeTable'] = timetable
         info['pickupTime'] = str(getOnTheCarTime)
         # print "转换信息",info
         jsondatar = json.dumps(info, ensure_ascii=False, separators=(',', ':')).encode('utf-8')

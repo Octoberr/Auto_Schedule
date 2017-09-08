@@ -5,6 +5,8 @@ Simplized version of 0-1 knapSack method.
 
 Donghui Chen, Wangmeng Song
 May 15, 2017
+Wangmeng Song
+August 16, 2017
 """
 
 
@@ -41,7 +43,8 @@ def getItemsUsed(w, c):
 
 # w = list of item weight or cost
 # W = max weight or max cost for the knapsack
-def  zeroOneKnapsack(w, W):
+# v = size of lat
+def  zeroOneKnapsack(w, v, W):
     # c is the cost matrix
     c = []
     n = len(w)
@@ -49,7 +52,6 @@ def  zeroOneKnapsack(w, W):
     c = zeros(n, W + 1)
     # the rows of the matrix are weights and the columns are items
     # cell c[i,j] is the optimal profit for i items of cost j
-
     # for every item
     for i in range(0, n):
         # for ever possible weight
@@ -63,14 +65,15 @@ def  zeroOneKnapsack(w, W):
                 # c[i-1][j-w[i]] is the max profit for the remaining weight after we add this item.
                 # if we add the profit of this item to the max profit of the remaining weight and it is more than
                 # adding nothing , then it't the new max profit if not just add nothing.
-                c[i][j] = max(c[i - 1][j], w[i] + c[i - 1][j - w[i]])
+                c[i][j] = max(c[i - 1][j], v[i] + c[i - 1][j - w[i]])
+    mostvalueindex = getItemsUsed(w, c)
+    personindex = [j for j, x in enumerate(mostvalueindex) if x is 1]
+    mostvalueperson = sum([w[n] for n in personindex])
+    return [mostvalueperson, personindex]
 
-    return [c[n - 1][W], getItemsUsed(w, c)]
 
-
-
-if __name__ == '__main__':
-    a = [2, 1, 1]
-    b = 3
-    print zeroOneKnapsack(a, b)
-
+# if __name__ == '__main__':
+#     w = [2, 3, 2, 3, 2]
+#     v = [2, 1, 4, 3, 0]
+#     MAX = 5
+#     print zeroOneKnapsack(w, v, MAX)
