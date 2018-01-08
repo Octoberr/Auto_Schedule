@@ -1,6 +1,7 @@
 # coding:utf-8
 from flask import Flask, request
 from sendtoairport import groupingdata
+from sendtoairport import shortestpath
 from recomTimeOnTheBus import recommendtime
 from recomTimeOnTheBus import eastandwestside
 import json
@@ -8,13 +9,13 @@ import json
 app = Flask(__name__)
 
 
-@app.route('/toairport', methods=['post'])
-def toairport():
-    # print request.data
-    # print type(request.data)
-    args = json.loads(request.data)
-    orderinfo = groupingdata.geteachTimepointSchedule(args)
-    return orderinfo
+# @app.route('/toairport', methods=['post'])
+# def toairport():
+#     # print request.data
+#     # print type(request.data)
+#     args = json.loads(request.data)
+#     orderinfo = groupingdata.geteachTimepointSchedule(args)
+#     return orderinfo
 
 
 @app.route('/provideordertime', methods=['post'])
@@ -27,6 +28,27 @@ def recomtime():
     re = recommendtime.RECOMDTIME()
     retime = re.getonthecardata(jsonargs)
     return retime
+
+
+@app.route('/ShortestPath', methods=['post'])
+def SuggestShortestPath():
+    args = request.data
+    try:
+        jsonargs = json.loads(args)
+    except:
+        return "no json data input,or inpudata error."
+    try:
+        triptype = jsonargs[0]['triptype']
+    except:
+        return "no triptype or trip type is wrong"
+    if triptype == 2:
+        result = shortestpath.TheShortestPath(jsonargs)
+        return result
+    elif triptype == 1:
+        result = shortestpath.HomeShortestPath(jsonargs)
+        return result
+    else:
+        return "wrong trip type!"
 
 
 @app.route('/firstprovidetime', methods=['post'])

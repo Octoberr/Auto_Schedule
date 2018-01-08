@@ -26,7 +26,10 @@ TIANFUSQUIRE = [30.604043, 104.074086]
 
 filedir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/" + "area"
 filename = ['region1.dbf', 'region2.dbf', 'region3.dbf', 'region4.dbf', 'region5.dbf', 'region6.dbf']
-TimeTableInfoURL = 'https://prerelease.jichangzhuanxian.com/api/ShiftTime/GetShiftTimeByTakeOffTime'
+# 测试环境
+# TimeTableInfoURL = 'https://prerelease.jichangzhuanxian.com/api/ShiftTime/GetShiftTimeByTakeOffTime'
+# 正式环境
+TimeTableInfoURL = 'https://mgr.jichangzhuanxian.com/api/ShiftTime/GetShiftTimeByTakeOffTime'
 
 
 class TIMEANDAREA:
@@ -109,7 +112,7 @@ class RECOMDTIME:
         orderVec = self.getOrderLocVec(orderdisVec)
         disVec = auxfn.calcDistVec(TIANFUSQUIRE, orderVec)
         distSort = sorted(range(len(disVec)), key=lambda k: disVec[k], reverse=True)
-        if len(distSort) is 1:  # 整辆车只有一个订单的情况
+        if len(distSort) == 1:  # 整辆车只有一个订单的情况
             if 'pickupTime' not in neworderinfo[distSort[0]].keys() or neworderinfo[distSort[0]]['pickupTime'] is None or neworderinfo[distSort[0]]['pickupTime'] is u"":
                 timeandare = self.getpickuptime(neworderinfo[0])
                 # unixpickuptime = int(time.mktime((timeandare.pickuptime).timetuple()))
@@ -134,7 +137,7 @@ class RECOMDTIME:
                 nextarea = nextpktimeandarea.area
                 if 'pickupTime' not in neworderinfo[distSort[i]].keys() or neworderinfo[distSort[i]]['pickupTime'] is None or neworderinfo[distSort[i]]['pickupTime'] is u"":
                     areacount = abs(nextarea - currentarea)
-                    if areacount is 0:
+                    if areacount == 0:
                         pickuptime += datetime.timedelta(minutes=PICKTIME) + datetime.timedelta(minutes=SAMEDURATION)
                     else:
                         pickuptime += datetime.timedelta(minutes=PICKTIME) + datetime.timedelta(minutes=DIFDURATION * areacount)
@@ -172,7 +175,6 @@ class RECOMDTIME:
         # print "jsondata", jsondatar
         return jsondatar
         # return txtname
-
 
     def gettheordertime(self):
         polys = sf.Reader("shapefiles/test/wholeArea.shp")

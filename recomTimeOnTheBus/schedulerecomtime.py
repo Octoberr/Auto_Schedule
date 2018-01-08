@@ -83,7 +83,7 @@ class SCHEDULETIME:
         re = recommendtime.RECOMDTIME()
         allcar = self.getScheduleInfo(allSchedule, allOrderInfo)
         for car in allcar:
-            if len(car) is 1:  # 整辆车只有一个订单的情况
+            if len(car) == 1:  # 整辆车只有一个订单的情况
                 if 'pickupTime' not in car[0].keys() or car[0]['driver'] is None or car[0]['driver'] is u"":
                     timeandare = self.getpickuptime(car[0])
                     # unixpickuptime = int(time.mktime((timeandare.pickuptime).timetuple()))
@@ -109,7 +109,7 @@ class SCHEDULETIME:
                     nextarea = nextpktimeandarea.area
                     # if 'pickupTime' not in car[i].keys() or car[i]['driver'] is None or car[i]['driver'] is u"":
                     areacount = abs(nextarea - currentarea)
-                    if areacount is 0:
+                    if areacount == 0:
                         pickuptime += datetime.timedelta(minutes=PICKTIME) + datetime.timedelta(minutes=SAMEDURATION)
                     else:
                         pickuptime += datetime.timedelta(minutes=PICKTIME) + datetime.timedelta(minutes=DIFDURATION * areacount)

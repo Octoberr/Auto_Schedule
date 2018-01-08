@@ -124,7 +124,7 @@ def getNeighborhoodIdx(points, center, radius, firstPassengerIdx, sidevec):
     for index, distance in zip(indices, distances):
         npIndex = index
         npDistance = distance
-    if sidevec[firstPassengerIdx] == 1:
+    if sidevec[firstPassengerIdx] == 1:   # 1可以选择1或者2
         for i in range(len(npIndex)):
                 if npDistance[i] <= radius:
                     neighborhoodIdx.append(npIndex[i])
@@ -132,7 +132,7 @@ def getNeighborhoodIdx(points, center, radius, firstPassengerIdx, sidevec):
                     break
     else:
         for i in range(len(npIndex)):
-            if sidevec[npIndex[i]] == 2:
+            if sidevec[npIndex[i]] == 2:   # 2就只能选择2
                 if npDistance[i] <= radius:
                     neighborhoodIdx.append(npIndex[i])
                 else:
@@ -186,11 +186,6 @@ def checkDirectionCondition(currentPoint, nextPoint):
         return True
     else:
         return False
-    # else:
-    #     if angleBetweenVectorsDegrees(currentPoint, leftCheckDirection, nextPoint) < MAXANGLE:
-    #         return True
-    #     else:
-    #         return False
 
 
 # 当前点side为1可以选择所有的点找周围的点，当前点为2就只能找2
@@ -213,9 +208,6 @@ def getSortedPointIdx(points, currentPoint, sidevec, currenside):
             elif sd.eastpick(points[index]):
                 closestPointIdx.append(index)
                 continue
-            elif sd.allpick(points[index]):
-                closestPointIdx.append(index)
-                continue
             elif sd.westpick(points[index]):
                 closestPointIdx.append(index)
                 continue
@@ -230,9 +222,6 @@ def getSortedPointIdx(points, currentPoint, sidevec, currenside):
                     closestPointIdx.append(index)
                     continue
                 elif sd.westpick(points[index]):
-                    closestPointIdx.append(index)
-                    continue
-                elif sd.allpick(points[index]):
                     closestPointIdx.append(index)
                     continue
                 else:
@@ -257,9 +246,3 @@ def getAllIndices(element, alist):
         except ValueError:
             return result
         result.append(offset)
-
-
-# if __name__ == '__main__':
-#     a = [1,1,2,3,1]
-#     c= getAllIndices(2,a)
-#     print c
